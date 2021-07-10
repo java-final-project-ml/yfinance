@@ -304,61 +304,9 @@ class TickerBase():
         # get info and sustainability
         data = utils.get_json(ticker_url, proxy, self.session)
 
-        # holders
-        try:
-            resp = utils.get_html(ticker_url + '/holders', proxy, self.session)
-            holders = _pd.read_html(resp)
-        except Exception as e:
-            holders = []
-
-        if len(holders) >= 3:
-            self._major_holders = holders[0]
-            self._institutional_holders = holders[1]
-            self._mutualfund_holders = holders[2]
-        elif len(holders) >= 2:
-            self._major_holders = holders[0]
-            self._institutional_holders = holders[1]
-        elif len(holders) >= 1:
-            self._major_holders = holders[0]
 
         #self._major_holders = holders[0]
         #self._institutional_holders = holders[1]
-
-        if self._institutional_holders is not None:
-            if 'Date Reported' in self._institutional_holders:
-                self._institutional_holders['Date Reported'] = _pd.to_datetime(
-                    self._institutional_holders['Date Reported'])
-            if '% Out' in self._institutional_holders:
-                self._institutional_holders['% Out'] = self._institutional_holders[
-                    '% Out'].str.replace('%', '').astype(float)/100
-
-        if self._mutualfund_holders is not None:
-            if 'Date Reported' in self._mutualfund_holders:
-                self._mutualfund_holders['Date Reported'] = _pd.to_datetime(
-                    self._mutualfund_holders['Date Reported'])
-            if '% Out' in self._mutualfund_holders:
-                self._mutualfund_holders['% Out'] = self._mutualfund_holders[
-                    '% Out'].str.replace('%', '').astype(float)/100
-
-        # sustainability
-        d = {}
-        try:
-            if isinstance(data.get('esgScores'), dict):
-                for item in data['esgScores']:
-                    if not isinstance(data['esgScores'][item], (dict, list)):
-                        d[item] = data['esgScores'][item]
-
-                s = _pd.DataFrame(index=[0], data=d)[-1:].T
-                s.columns = ['Value']
-                s.index.name = '%.f-%.f' % (
-                    s[s.index == 'ratingYear']['Value'].values[0],
-                    s[s.index == 'ratingMonth']['Value'].values[0])
-
-                self._sustainability = s[~s.index.isin(
-                    ['maxAge', 'ratingYear', 'ratingMonth'])]
-        except Exception:
-            pass
-
         # info (be nice to python 2)
         self._info = {}
         try:
@@ -398,20 +346,6 @@ class TickerBase():
             self._calendar = cal.T
             self._calendar.index = utils.camel2title(self._calendar.index)
             self._calendar.columns = ['Value']
-        except Exception:
-            pass
-
-        # analyst recommendations
-        try:
-            rec = _pd.DataFrame(
-                data['upgradeDowngradeHistory']['history'])
-            rec['earningsDate'] = _pd.to_datetime(
-                rec['epochGradeDate'], unit='s')
-            rec.set_index('earningsDate', inplace=True)
-            rec.index.name = 'Date'
-            rec.columns = utils.camel2title(rec.columns)
-            self._recommendations = rec[[
-                'Firm', 'To Grade', 'From Grade', 'Action']].sort_index()
         except Exception:
             pass
 
