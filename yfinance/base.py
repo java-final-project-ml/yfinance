@@ -322,73 +322,8 @@ class TickerBase():
             # For some reason summaryDetail did not give any results. The price dict usually has most of the same info
             self._info.update(data.get('price', {}))
 
-        try:
-            # self._info['regularMarketPrice'] = self._info['regularMarketOpen']
-            self._info['regularMarketPrice'] = data.get('price', {}).get(
-                'regularMarketPrice', self._info.get('regularMarketOpen', None))
-        except Exception:
-            pass
 
-        self._info['logo_url'] = ""
-        try:
-            domain = self._info['website'].split(
-                '://')[1].split('/')[0].replace('www.', '')
-            self._info['logo_url'] = 'https://logo.clearbit.com/%s' % domain
-        except Exception:
-            pass
 
-        # events
-        try:
-            cal = _pd.DataFrame(
-                data['calendarEvents']['earnings'])
-            cal['earningsDate'] = _pd.to_datetime(
-                cal['earningsDate'], unit='s')
-            self._calendar = cal.T
-            self._calendar.index = utils.camel2title(self._calendar.index)
-            self._calendar.columns = ['Value']
-        except Exception:
-            pass
-
-        # get fundamentals
-        data = utils.get_json(ticker_url+'/financials', proxy, self.session)
-
-        # generic patterns
-        for key in (
-            (self._cashflow, 'cashflowStatement', 'cashflowStatements'),
-            (self._balancesheet, 'balanceSheet', 'balanceSheetStatements'),
-            (self._financials, 'incomeStatement', 'incomeStatementHistory')
-        ):
-            item = key[1] + 'History'
-            if isinstance(data.get(item), dict):
-                try:
-                    key[0]['yearly'] = cleanup(data[item][key[2]])
-                except Exception as e:
-                    pass
-
-            item = key[1]+'HistoryQuarterly'
-            if isinstance(data.get(item), dict):
-                try:
-                    key[0]['quarterly'] = cleanup(data[item][key[2]])
-                except Exception as e:
-                    pass
-
-        # earnings
-        if isinstance(data.get('earnings'), dict):
-            try:
-                earnings = data['earnings']['financialsChart']
-                earnings['financialCurrency'] = 'USD' if 'financialCurrency' not in data['earnings'] else data['earnings']['financialCurrency']
-                self._earnings['financialCurrency'] = earnings['financialCurrency']
-                df = _pd.DataFrame(earnings['yearly']).set_index('date')
-                df.columns = utils.camel2title(df.columns)
-                df.index.name = 'Year'
-                self._earnings['yearly'] = df
-
-                df = _pd.DataFrame(earnings['quarterly']).set_index('date')
-                df.columns = utils.camel2title(df.columns)
-                df.index.name = 'Quarter'
-                self._earnings['quarterly'] = df
-            except Exception as e:
-                pass
 
         self._fundamentals = True
 
